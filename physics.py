@@ -1,20 +1,30 @@
 class simEnvironment:
     def __init__(self, objects, globalForces, dimensions=2) -> None:
+        self.__dimensions = dimensions
+        self.__globalForces = globalForces
+        self.calcGlobalResultantForces()
         for object in objects:
             object.changeParent(self)
         self.__objects = objects
         for force in globalForces:
             force.changeParent(self)
-        self.__globalForces = globalForces
-        self.__dimensions = dimensions
 
     def __str__(self) -> str:
         objectCoords = 'Object Coordinates:\n'
         for i in range(len(self.__objects)):
             objectCoords += f' {i+1}. {self.__objects[i].getCoordinates()}\n'
+        return objectCoords
 
     def getDimensions(self):
         return self.__dimensions
+    
+    def getGlobalForce(self):
+        return self.__globalResultantForces
+    
+    def calcGlobalResultantForces(self):
+        self.__globalResultantForces = Vector([0 for i in range(self.__dimensions)], isPersistant=True, parentObject=self)
+        for force in self.__globalForces:
+            self.__globalResultantForces = self.__globalResultantForces.addVector(force)
 
     def timeStep(self, timeJump=1):
         for object in self.__objects:
@@ -22,7 +32,7 @@ class simEnvironment:
 
 class Object:
     def __init__(self, mass, coordinates, measurements, environment=None, vectors=[]) -> None:
-        if len(coordinates) != environment.__dimensions:
+        if environment != None and len(coordinates) != environment.__dimensions:
             raise Exception('Wrong number of dimensions.')
         else:
             self.__coordinates = coordinates
@@ -32,7 +42,7 @@ class Object:
         self.__mass = mass
         self.__measurements = measurements
         self.__environment = environment
-        self.calculateResultantForce()
+        self.__velocity = None
 
     def addVector(self, vector):
         self.__vectors.append(vector)
@@ -49,48 +59,65 @@ class Object:
         if userInput != 'X':
             del self.__vectors[int(userInput)]
     
-    def calculateResultantForce(self):
-        resultantForce = [0 for i in range(self.__environment.getDimensions())]
-        for i in range(self.__environment.getDimensions()):
-            for vector in self.__vectors:
-                resultantForce[i] += vector[i]
-        self.__resultantForce = resultantForce
+    def initVelocity(self):
+        self.__velocity = Vector([0 for i in range(self.__environment.getDimensions())], isPersistant=True, parentObject=self)
+        for vector in self.__vectors:
+            self.__velocity = self.__velocity.addVector(vector)
+            
+        for i in range(len(self.__vectors)-1, -1, -1):
+            if not self.__vectors[i].getIsPersistant():
+                del self.__vectors[i]
 
     def changeParent(self, newParent):
         self.__environment = newParent
+        self.initVelocity()
 
     def getCoordinates(self):
         return self.__coordinates
 
     def timeStep(self, timeJump):
+        newCoords = list(self.__coordinates)
         for i in range(self.__environment.getDimensions()):
-            for vector in self.__vectors:
-                self.__coordinates[i] += vector.getForces[i]/timeJump
+            newCoords[i] += (self.__velocity.getForces()[i]*timeJump)+((1/2)*(self.__environment.getGlobalForce().getForces()[i])*(timeJump**2))
+        self.__coordinates = tuple(newCoords)
+        for i in range(self.__environment.getDimensions()):
+            self.__velocity.setForce(i, (self.__velocity.getForces()[i]+(self.__environment.getGlobalForce().getForces()[i]*timeJump)))
 
 
-class Particle(Object):
-    def __init__(self, mass, coordinates, environment=None, vectors=[]) -> None:
-        super().__init__(mass, coordinates, tuple(0 for i in range(environment.getDimensions())), environment, vectors)
+#class Particle(Object):
+#    def __init__(self, mass, coordinates, environment=None, vectors=[]) -> None:
+#        super().__init__(mass, coordinates, None if environment==None else tuple(0 for i in range(environment.getDimensions())), environment, vectors)
+#    
+#    def changeParent(self, newParent):
+#        self.__environment = newParent
+#        self.__measurements = tuple(0 for i in range(self.__environment.getDimensions()))
 
 class Vector:
-    def __init__(self, componentForces, parentObject=None) -> None:
+    def __init__(self, componentForces, isPersistant=False, parentObject=None) -> None:
         self.__componentForces = componentForces
+        self.__isPersistant = isPersistant
         self.__parentObject = parentObject
 
     def __str__(self) -> str:
         return self.__componentForces
     
-    #def addVector(self, additionalVector):
-    #    try:
-    #        newVector = []
-    #        for i in range(self.__componentForces):
-    #            newVector.append(self.__componentForces[i]+additionalVector.__componentForces[i])
-    #        return tuple(newVector)
-    #    except:
-    #        raise Exception('Adding these vectors have failed, ensure both have the same number of dimensions and both have dimensions consisting of only floats.')
+    def addVector(self, additionalVector):
+        try:
+            newVector = []
+            for i in range(len(self.__componentForces)):
+                newVector.append(self.__componentForces[i]+additionalVector.__componentForces[i])
+            return Vector(newVector, isPersistant=self.__isPersistant, parentObject=self.__parentObject)
+        except:
+            raise Exception('Adding these vectors have failed, ensure both have the same number of dimensions and both have dimensions consisting of only floats.')
         
     def changeParent(self, newParent):
         self.__parentObject = newParent
+
+    def setForce(self, dimension, value):
+        self.__componentForces[dimension] = value
         
     def getForces(self):
         return self.__componentForces
+    
+    def getIsPersistant(self):
+        return self.__isPersistant
