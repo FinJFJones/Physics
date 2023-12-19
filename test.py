@@ -1,8 +1,5 @@
-import physics as ph
+from physics import *
 import time
-
-myEnv = ph.simEnvironment([ph.Particle(5, (0, 0), vectors=[ph.Vector((1, 1))])], ph.Vector((0, -9.8)))
-for i in range(10):
-    print(myEnv)
-    myEnv.timeStep(1)
-    time.sleep(1)
+ 
+myEnv = screen(simEnvironment([Object(5, (100, 100), (0, 0), vectors=[Vector((50, 50))]), Object(5, (100, 100), (0, 0), vectors=[Vector((25, 100))]), Object(5, (100, 100), (0, 0), vectors=[Vector((75, 25))])], [Vector((0, -9.8))], dimensions=2))
+myEnv.draw(10, 100)
