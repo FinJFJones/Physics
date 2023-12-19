@@ -124,8 +124,7 @@ class Object:
         self.__coordinates = tuple(newCoords)
         for i in range(self.__environment.getDimensions()):
             self.__velocity.setForce(i, (self.__velocity.getForces()[i]+(self.__environment.getGlobalForce().getForces()[i]*timeJump)))
- 
- 
+
 #class Particle(Object):
 #    def __init__(self, mass, coordinates, environment=None, vectors=[]) -> None:
 #        super().__init__(mass, coordinates, None if environment==None else tuple(0 for i in range(environment.getDimensions())), environment, vectors)
